@@ -1,7 +1,7 @@
 
-# RAG Knowledge Base Project
+# RAG Project
 
-Этот проект позволяет создавать и обновлять базу знаний для RAG (Retrieval-Augmented Generation) системы на основе веб-страниц и PDF-файлов, а также запускатьв консоли чат-бота для работы с этой базой.
+Этот проект позволяет создавать и обновлять базу знаний для RAG (Retrieval-Augmented Generation) системы на основе веб-страниц и PDF-файлов, а также запускать в консоли чат-бота для работы с этой базой.
 Для использования данного проекта требуется LM Studio для запуска хоста моделей.
 
 ### Основные возможности
@@ -79,7 +79,7 @@ pip install -r requirements.txt
 
 ```bash
 # Обновляем базу из PDF
-python main.py pdf --pdf_dir ./pdfs --out ./kb_outpu
+python main.py pdf --pdf_dir ./pdfs --out ./kb_output
 
 # Обновляем базу из URL
 python main.py url --seeds ./seed_urls.txt --out ./kb_output --max_pages 200 --delay 0.1
