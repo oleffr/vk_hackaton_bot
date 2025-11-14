@@ -77,125 +77,92 @@ DEFAULT_OUT = "kb_output"
 qa_chain = init_bot(embedder, DEFAULT_OUT, prompt=PROMPT1)
 qa_chain_map = init_bot2(prompt=PROMPT2)
 
+
 import re
 import logging
-from pathlib import Path
-
-async def find_navigation_images(answer: str) -> list[Path]:
+import urllib.parse
+import urllib.request
+from urllib.error import HTTPError, URLError
+async def find_navigation_images(answer: str) -> list[str]:
     """
     Извлекает путь к зданию и номер аудитории из ответа,
-    ищет подходящие изображения в img/<здание>/<номер>_*.jpg
-    Возвращает список путей к найденным файлам.
+    возвращает список GitHub URLs к изображениям, которые существуют.
     """
     logging.info("зашли в find_navigation_images")
-    print(f"Исходный ответ: {repr(answer)}")  # repr покажет спецсимволы
     
-    # Более гибкое регулярное выражение
     match = re.search(r"на рисунке\s*['\"]([^'\"]+)['\"]", answer, re.IGNORECASE)
     if not match:
-        logging.info("Не найден маркер 'на рисунке' в ответе")
-        print("Не найден маркер 'на рисунке'") 
         return []
 
-    path_str = match.group(1).strip()
-    print(f"Извлеченный путь: {repr(path_str)}")
-    
-    # Заменяем обратные слеши на прямые для единообразия
-    path_str = path_str.replace('\\', '/')
-    print(f"Путь после замены: {repr(path_str)}")
-    
-    # Разделяем путь
+    path_str = match.group(1).strip().replace('\\', '/')
     parts = path_str.split('/', 1)
     if len(parts) != 2:
-        logging.warning(f"Неверный формат пути: {path_str}")
-        print(f"Неверный формат пути: {path_str}")
         return []
 
     building, filename = parts
-    print(f"Здание: {building}, файл: {filename}")
-    
-    # Извлекаем номер аудитории (более гибко)
     rm = re.search(r'(\d+)', filename)
     if not rm:
-        logging.warning(f"Не удалось извлечь номер аудитории из {filename}")
-        print(f"Не удалось извлечь номер аудитории из {filename}")
         return []
 
     room = rm.group(1)
-    print(f"room = {room}")
     
-    img_dir = Path("img") / building
-    print(f"Ищем в директории: {img_dir}")
-    print(f"Существует ли директория: {img_dir.exists()}")
+    # Базовый URL вашего GitHub репозитория
+    base_url = "https://raw.githubusercontent.com/Ogneva2Vasilisa/Min_RAG_with_crawler/main/img"
     
-    if not img_dir.exists():
-        logging.warning(f"Папка {img_dir} не найдена")
-        return []
-
-    # Ищем файлы с разными расширениями
-    image_patterns = [f"{room}_*.jpg", f"{room}_*.png", f"{room}_*.webp"]
-    image_paths = []
+    # Правильно кодируем кириллицу в URL
+    building_encoded = urllib.parse.quote(building)
     
-    for pattern in image_patterns:
-        image_paths.extend(sorted(img_dir.glob(pattern)))
+    # Формируем возможные URL с кодированием
+    possible_urls = [
+        f"{base_url}/{building_encoded}/{room}_1.jpg",
+        f"{base_url}/{building_encoded}/{room}_2.jpg", 
+    ]
     
-    print(f"Найдено файлов: {len(image_paths)}")
+    # Убираем возможные двойные слеши
+    clean_urls = [url.replace('//', '/').replace(':/', '://') for url in possible_urls]
     
-    return image_paths
+    # Проверяем существование файлов
+    existing_urls = []
+    for url in clean_urls:
+        try:
+            # Создаем запрос и проверяем статус
+            req = urllib.request.Request(url, method='HEAD')
+            response = urllib.request.urlopen(req)
+            if response.status == 200:
+                existing_urls.append(url)
+                logging.info(f"Файл существует: {url}")
+        except (HTTPError, URLError) as e:
+            logging.info(f"Файл не существует: {url} - {e}")
+            continue
+        except Exception as e:
+            logging.warning(f"Ошибка при проверке {url}: {e}")
+            continue
+    
+    logging.info(f"Найдено существующих файлов: {len(existing_urls)}")
+    return existing_urls
 
 async def send_navigation_response(event, answer: str):
     """
-    Отправляет пользователю текст навигации и, если есть, изображения.
-    Даже если изображения не найдены, сообщает об этом.
+    Упрощенная отправка навигации - текст и затем ссылки на изображения
     """
     logging.info("зашли в send_navigation_response")
-    nav_text=""
+    
+    # Очищаем текст ответа
+    nav_text = answer.split('\n')[0].strip()
+    
+    # Получаем URL изображений (только существующие)
+    image_urls = await find_navigation_images(answer)
 
-    image_paths = await find_navigation_images(answer)
-
-    if not image_paths:
-        await event.message.answer(
-            nav_text + "\n\n⚠️ К сожалению, не удалось найти изображение для указанной аудитории.\n\n"
-        )
+    if not image_urls:
+        await event.message.answer("❌ Сейчас данное место не поддерживается ботом или его не существует")
+        await event.message.answer("Для выхода из режима используйте /cancel")
         return
 
-    MAX_SEND = 6
-    to_send = image_paths[:MAX_SEND]
-    logging.info(f"Навигация: найдено {len(to_send)} изображений -> {[str(p) for p in to_send]}")
+    # Отправляем каждую существующую ссылку отдельным сообщением
+    for i, url in enumerate(image_urls, 1):
+        await event.message.answer(f"📸 Схема {i}: {url}")
 
-    try:
-        await event.message.answer(nav_text, attachments=[str(p) for p in to_send])
-    except Exception as e1:
-        logging.warning(f"Ошибка при отправке по строковым путям: {e1}")
-        files = []
-        try:
-            for p in to_send:
-                files.append(open(p, "rb"))
-            await event.message.answer(nav_text, attachments=files)
-        except Exception as e2:
-            logging.error(f"Ошибка при отправке бинарных файлов: {e2}")
-            await event.message.answer(
-                nav_text
-                + "\n\n⚠️ Найдены изображения, но не удалось их прикрепить.\n"
-                  f"Файлы расположены в: {', '.join(str(p) for p in to_send)}"
-            )
-        finally:
-            if "\n" in answer:
-                answer = answer.split("\n", 1)[0].strip()
-            m = re.search(r"\.\s*\.", answer)
-            if m:
-                answer = answer[:m.start() + 1].strip()
-            nav_text = (
-                "🗺️ *Режим навигации*\n\n"
-                f"📍 *Эхо-ответ:* Ищу информацию по запросу: {answer}\n\n"
-                "Для выхода из режима используйте /cancel"
-            )
-            for f in files:
-                try:
-                    f.close()
-                except:
-                    pass
-
+    await event.message.answer("Для выхода из режима используйте /cancel")
 
 
 # ============================================================================

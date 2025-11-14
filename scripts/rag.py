@@ -62,40 +62,48 @@ PROMPT2 = """
 {question}
 """
 
-def qa_ai(qa_chain, text):
-    """Обработка запроса к RAG-системе"""
-    try:
-        result = qa_chain.invoke({"query": text})
-        answer = result.get("result", "").strip()
-        sources = result.get("source_documents", [])
-        
-        # Очистка ответа
-        if "Информации недостаточно" in answer:
-            answer = "Информации недостаточно."
-        elif "\n\n" in answer:
-            answer = answer.split("\n\n")[0]
-            
-        # Обрезка по двойным точкам
-        m = re.search(r"\.\s*\.", answer)
-        if m:
-            answer = answer[:m.start() + 1]
-            
-        # Форматирование источников
-        sources_text = ""
-        if sources:
-            unique_sources = set()
-            for doc in sources:
-                meta = getattr(doc, "metadata", {})
-                source = meta.get("source", "Неизвестно")
-                title = meta.get("title", "")
-                unique_sources.add(f"{title} ({source})")
-            
-            sources_text = "\n".join([f"- {s}" for s in unique_sources])
-                
-        return answer, sources_text
-    except Exception as e:
-        print(f"[ERROR] Ошибка в qa_ai: {e}")
-        return "Произошла ошибка при обработке запроса", ""
+def qa_ai(qa_chain_a, text):
+    result = qa_chain_a.invoke({"query": text})
+    answer_a = result.get("result", "")
+    sources_a = result.get("source_documents", [])
+    key_phrase = "Информации недостаточно"
+    
+    if answer_a.startswith(key_phrase):
+        # Если ответ начинается с этой фразы — оставляем только её
+        answer_a = key_phrase
+    elif key_phrase in answer_a:
+        # Если встречается внутри — обрезаем по ней
+        answer_a = answer_a.split(key_phrase, 1)[0].strip()
+    
+    # Обрезаем по первому двойному переводу строки
+    if "\n\n" in answer_a:
+        answer_a = answer_a.split("\n\n", 1)[0].strip()
+
+    # Ищем паттерн '.<пробелы>.' и обрезаем по нему
+    m = re.search(r"\.\s*\.", answer_a)
+    if m:
+        answer_a = answer_a[:m.start() + 1].strip()
+    
+    # НОВАЯ ЛОГИКА: обрезаем если встречаются только точки, пробелы и переносы
+    # Ищем последовательность из 5 символов подряд, которые содержат только: . \s \n
+    pattern = r"[\.\s\n]{5,}"  # 5 или более символов из набора: точка, пробел, перенос строки
+    match = re.search(pattern, answer_a)
+    if match:
+        # Обрезаем ответ до начала этой последовательности
+        answer_a = answer_a[:match.start()].strip()
+        # Убираем возможную точку в конце
+        if answer_a.endswith('.'):
+            answer_a = answer_a[:-1].strip()
+    
+    s = ""
+    if sources_a:
+        for doc in sources_a:
+            meta = getattr(doc, "metadata", {})
+            source = meta.get("source", "Неизвестно")
+            title = meta.get("title", "")
+            s = s + f"- {title} ({source})\n"
+    
+    return answer_a, s
 
 def qa_ai_nav(nav_chain, text):
     """Обработка навигационных запросов"""
