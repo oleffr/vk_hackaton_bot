@@ -1,0 +1,38 @@
+# Используем официальный образ Python
+FROM python:3.11-slim
+
+# Устанавливаем системные зависимости для FAISS и других пакетов
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Устанавливаем рабочую директорию внутри контейнера
+WORKDIR /app
+
+# Копируем файл с зависимостями и устанавливаем их
+COPY requirements.txt .
+
+# Обновляем pip и устанавливаем зависимости
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Устанавливаем FAISS (CPU версия для совместимости)
+RUN pip install --no-cache-dir faiss-cpu
+
+# Копируем весь исходный код проекта в контейнер
+COPY . .
+
+# Создаем необходимые директории
+RUN mkdir -p /app/kb_output /app/data
+
+# Указываем переменные окружения для подключения к Ollama
+ENV LM_API_URL=http://ollama:11434/v1
+ENV LM_API_KEY=not-needed
+ENV LLM_MODEL_NAME=qwen2.5:3b
+ENV EMBEDDING_MODEL_NAME=all-minilm
+ENV DEFAULT_OUT=kb_output
+
+# Команда для запуска бота
+CMD ["python", "bot.py"]

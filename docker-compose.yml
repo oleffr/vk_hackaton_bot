@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  ollama:
+    build:
+      context: .
+      dockerfile: Dockerfile.ollama
+    container_name: rag-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434  # ← добавляем эту строку
+    volumes:
+      - ollama_data:/root/.ollama
+
+  rag-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    container_name: rag-bot
+    restart: unless-stopped
+    environment:
+      - LM_API_URL=http://ollama:11434/v1
+      - LM_API_KEY=not-needed
+      - LLM_MODEL_NAME=qwen2.5:3b
+      - EMBEDDING_MODEL_NAME=all-minilm
+    volumes:
+      - rag_kb_data:/app/kb_output
+      - rag_reminders_data:/app/data
+      - ./img:/app/img:ro
+      - ./jsons:/app/jsons:ro
+    depends_on:
+      - ollama
+
+  rebuild-kb:
+    build:
+      context: .
+      dockerfile: Dockerfile.rebuild-kb
+    container_name: kb-rebuilder
+    environment:
+      - LM_API_URL=http://ollama:11434/v1
+      - LM_API_KEY=not-needed
+      - LLM_MODEL_NAME=qwen2.5:3b
+      - EMBEDDING_MODEL_NAME=all-minilm
+    volumes:
+      - rag_kb_data:/app/kb_output
+      - ./jsons:/app/jsons:ro
+      - ./seed_urls.txt:/app/seed_urls.txt:ro
+      - ./img:/app/img:ro
+      - ./pdfs:/app/pdfs:ro
+    depends_on:
+      - ollama
+    profiles: ["rebuild"]
+    stdin_open: true
+    tty: true
+
+volumes:
+  rag_kb_data:
+  rag_reminders_data:
+  ollama_data:

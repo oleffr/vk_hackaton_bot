@@ -1,0 +1,25 @@
+FROM ubuntu:22.04
+
+# Устанавливаем необходимые зависимости
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Устанавливаем Ollama
+RUN curl -fsSL https://ollama.ai/install.sh | sh
+
+# Устанавливаем рабочую директорию
+WORKDIR /app
+
+# Копируем скрипт инициализации моделей
+COPY init-models.sh /app/init-models.sh
+RUN chmod +x /app/init-models.sh
+
+# Загружаем модели при сборке образа
+RUN /app/init-models.sh
+
+# Экспортируем порт
+EXPOSE 11434
+
+# Запускаем Ollama сервер
+CMD ["/usr/local/bin/ollama", "serve"]

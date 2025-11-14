@@ -2,11 +2,10 @@
 # -*- coding: utf-8 -*-
 """
 Инициализация модели и эмбеддингов для проекта RAG
-Ускорённая версия: параллельный расчёт эмбеддингов по батчам
 """
 import os
 import requests
-from langchain_openai import OpenAI
+from langchain_openai import ChatOpenAI
 from pathlib import Path
 import hashlib
 from tqdm import tqdm
@@ -20,43 +19,55 @@ import numpy as np
 
 USER_AGENT = os.environ.get("USER_AGENT", "rag-crawler/1.0")
 
-# LM Studio настройки
-LM_API_URL = "http://localhost:1234/v1"
-LM_API_KEY = "lm-studio"
-EMBEDDING_MODEL = "text-embedding-paraphrase-multilingual-minilm-l12-v2.gguf"
-LLM_MODEL_NAME = "Qwen2.5-3B-Instruct"
-EMBEDDING_MODEL_NAME = "text-embedding-paraphrase-multilingual-minilm-l12-v2.gguf"
+# НАСТРОЙКИ
+OLLAMA_BASE_URL = "http://ollama:11434"
+LM_API_URL = f"{OLLAMA_BASE_URL}/v1"
+LM_API_KEY = "not-needed"
+LLM_MODEL_NAME = "qwen2.5:3b"
+EMBEDDING_MODEL_NAME = "all-minilm"
 FAISS_INDEX_NAME = "faiss_index"
 METADATA_NAME = "metadata.json"
 
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 50
 
-# Конфигурация параллелизма / батчей
 DEFAULT_BATCH_SIZE = 256
 DEFAULT_WORKERS = 4
-
-# Блокировка для безопасного доступа/сохранения FAISS
 faiss_lock = threading.Lock()
 
 
-class LMStudioEmbeddings:
-    def __init__(self, model_name=EMBEDDING_MODEL_NAME, api_url=LM_API_URL, api_key=LM_API_KEY):
+class OllamaEmbeddings:
+    def __init__(self, model_name=EMBEDDING_MODEL_NAME, base_url=OLLAMA_BASE_URL, api_key=LM_API_KEY):
         self.model_name = model_name
-        self.api_url = api_url.rstrip("/")
+        self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.session = requests.Session()
         self.session.headers.update({"Authorization": f"Bearer {api_key}", "User-Agent": USER_AGENT})
-        self._timeout = 60
+        self._timeout = 240
 
     def embed_documents(self, texts):
         if isinstance(texts, str):
             texts = [texts]
-        payload = {"model": self.model_name, "input": texts}
-        resp = self.session.post(f"{self.api_url}/embeddings", json=payload, timeout=self._timeout)
-        resp.raise_for_status()
-        data = resp.json()
-        return [d["embedding"] for d in data["data"]]
+        
+        embeddings = []
+        for text in texts:
+            try:
+                payload = {
+                    "model": self.model_name,
+                    "prompt": text
+                }
+                resp = self.session.post(f"{self.base_url}/api/embeddings", json=payload, timeout=self._timeout)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    embeddings.append(data["embedding"])
+                else:
+                    print(f"[WARN] Ошибка эмбеддинга ({resp.status_code}): {resp.text}")
+                    embeddings.append([0.0] * 768)  # fallback для nomic-embed-text
+            except Exception as e:
+                print(f"[ERROR] Ошибка при получении эмбеддинга: {e}")
+                embeddings.append([0.0] * 768)
+        
+        return embeddings
 
     def embed_query(self, text):
         return self.embed_documents([text])[0]
@@ -66,16 +77,18 @@ class LMStudioEmbeddings:
 
 
 def get_embedder():
-    return LMStudioEmbeddings(EMBEDDING_MODEL, LM_API_URL, LM_API_KEY)
+    return OllamaEmbeddings(EMBEDDING_MODEL_NAME, OLLAMA_BASE_URL, LM_API_KEY)
 
 
 def get_llm():
-    return OpenAI(
+    """Используем ChatOpenAI для совместимости с Ollama"""
+    return ChatOpenAI(
         openai_api_base=LM_API_URL,
         openai_api_key=LM_API_KEY,
         model_name=LLM_MODEL_NAME,
         temperature=0.5,
-        max_tokens=100
+        max_tokens=100,
+        streaming=False
     )
 
 
@@ -114,7 +127,7 @@ class _PrecomputedEmbeddings:
 def add_chunks_to_faiss(
     items: dict,
     output_dir: str,
-    embedder: LMStudioEmbeddings,
+    embedder: OllamaEmbeddings,  # ИСПРАВЛЕНО: OllamaEmbeddings вместо LMStudioEmbeddings
     min_text_len: int = 50,
     batch_size: int = DEFAULT_BATCH_SIZE,
     workers: int = DEFAULT_WORKERS,
