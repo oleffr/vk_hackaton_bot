@@ -15,7 +15,7 @@ from maxapi.utils.inline_keyboard import InlineKeyboardBuilder
 
 from reminders import ReminderManager
 
-# Загружаем данные из JSON файлов
+
 with open('jsons/FAQ.json', 'r', encoding='utf-8') as f:
     faq_data = json.load(f)
 
@@ -27,24 +27,23 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot('f9LHodD0cOJgDVVnKfwRanQrYXyiuaCq0EdOcsAdfkarSVVmJbZoolSECS7NWJhX_D12PSPLYDrjw_fqbq2v')
 dp = Dispatcher()
 
-# Инициализируем менеджер напоминаний
+
 reminder_manager = ReminderManager(bot)
 
-# Словарь для хранения состояний пользователей
 user_modes = {}
 
-# Функция нормализации строк
+
 def normalize_string(s):
-    """Нормализация строки для сравнения - убираем лишние пробелы"""
+    
     return ' '.join(s.strip().split())
 
-# Нормализуем FAQ данные
+
 normalized_faq_data = {}
 for question, answer in faq_data.items():
     normalized_question = normalize_string(question)
     normalized_faq_data[normalized_question] = answer
 
-# Нормализуем категории
+
 normalized_categories_data = {}
 for category, data in categories_data.items():
     normalized_questions = [normalize_string(q) for q in data.get("questions", [])]
@@ -53,15 +52,15 @@ for category, data in categories_data.items():
         "questions": normalized_questions
     }
 
-# Функция для получения вопросов по категории
+
 def get_questions_for_category(category):
     return normalized_categories_data.get(category, {}).get("questions", [])
 
-# Функция для получения заголовка категории
+
 def get_category_title(category):
     return normalized_categories_data.get(category, {}).get("title", "Категория")
 
-# Функция для получения оригинальных вопросов по категории (для отображения)
+
 def get_original_questions_for_category(category):
     return categories_data.get(category, {}).get("questions", [])
 
@@ -142,15 +141,13 @@ async def find_navigation_images(answer: str) -> list[str]:
     return existing_urls
 
 async def send_navigation_response(event, answer: str):
-    """
-    Упрощенная отправка навигации - текст и затем ссылки на изображения
-    """
+  
     logging.info("зашли в send_navigation_response")
     
-    # Очищаем текст ответа
+  
     nav_text = answer.split('\n')[0].strip()
     
-    # Получаем URL изображений (только существующие)
+   
     image_urls = await find_navigation_images(answer)
 
     if not image_urls:
@@ -158,7 +155,6 @@ async def send_navigation_response(event, answer: str):
         await event.message.answer("Для выхода из режима используйте /cancel")
         return
 
-    # Отправляем каждую существующую ссылку отдельным сообщением
     for i, url in enumerate(image_urls, 1):
         await event.message.answer(f"📸 Схема {i}: {url}")
 
@@ -169,11 +165,10 @@ async def send_navigation_response(event, answer: str):
 # ОБНОВЛЕННЫЕ ФУНКЦИИ МЕНЮ
 # ============================================================================
 
-# НОВОЕ ГЛАВНОЕ МЕНЮ с 5 кнопками
 def get_main_menu():
     builder = InlineKeyboardBuilder()
     
-    # 5 основных кнопок
+
     builder.row(CallbackButton(text="📅 Напоминания", payload="reminders_menu"))
     builder.row(CallbackButton(text="❓ Часто задаваемые вопросы", payload="faq_categories"))
     builder.row(CallbackButton(text="💬 Задать свободный вопрос", payload="free_question"))
@@ -182,11 +177,11 @@ def get_main_menu():
     
     return builder.as_markup()
 
-# Меню категорий FAQ (вместо старого главного меню)
+
 def get_faq_categories_menu():
     builder = InlineKeyboardBuilder()
     
-    # Добавляем кнопки по категориям FAQ
+  
     builder.row(CallbackButton(text="🌱 Адаптация первокурсников", payload="menu_freshmen"))
     builder.row(CallbackButton(text="📚 Учебный процесс", payload="menu_studies"))
     builder.row(CallbackButton(text="📄 Документы и справки", payload="menu_documents"))
@@ -198,7 +193,7 @@ def get_faq_categories_menu():
     
     return builder.as_markup()
 
-# Функция для меню напоминаний
+
 def get_reminders_menu():
     builder = InlineKeyboardBuilder()
     builder.row(CallbackButton(text="➕ Добавить напоминание", payload="add_reminder"))
@@ -207,11 +202,11 @@ def get_reminders_menu():
     builder.row(CallbackButton(text="🔙 Назад в главное меню", payload="back_to_main"))
     return builder.as_markup()
 
-# Функция для создания меню вопросов по категории
+
 def get_questions_menu(category):
     builder = InlineKeyboardBuilder()
     
-    # Используем оригинальные вопросы для отображения
+   
     original_questions = get_original_questions_for_category(category)
     
     for question in original_questions:
@@ -224,7 +219,7 @@ def get_questions_menu(category):
     
     return builder.as_markup()
 
-# Функция для меню управления напоминаниями на неделю
+
 def get_week_reminders_menu(reminders):
     builder = InlineKeyboardBuilder()
     
@@ -232,44 +227,43 @@ def get_week_reminders_menu(reminders):
         date = datetime.strptime(date_str, '%Y-%m-%d').date()
         display_text = f"{date.strftime('%d.%m')}: {text[:25]}{'...' if len(text) > 25 else ''}"
         
-        # Кнопка удаления с реальным ID
         builder.row(CallbackButton(text=f"❌ ID {reminder_id}: {display_text}", payload=f"delete_{reminder_id}"))
     
     builder.row(CallbackButton(text="🔙 Назад к напоминаниям", payload="back_to_reminders"))
     return builder.as_markup()
 
-# Функция для меню управления напоминаниями на конкретную дату
+
 def get_date_reminders_menu(reminders, target_date):
     builder = InlineKeyboardBuilder()
     
     for i, (reminder_id, text, date_str) in enumerate(reminders, 1):
         display_text = f"{text[:30]}{'...' if len(text) > 30 else ''}"
-        # Показываем порядковый номер для пользователя, но используем реальный ID в payload
+     
         builder.row(CallbackButton(text=f"#{i} ✏️ {display_text}", payload=f"edit_text_{reminder_id}"))
         builder.row(CallbackButton(text=f"#{i} ❌ Удалить", payload=f"delete_{reminder_id}"))
     
     builder.row(CallbackButton(text="🔙 Назад к напоминаниям", payload="back_to_reminders"))
     return builder.as_markup()
 
-# Функция для получения ответа на вопрос
+
 def get_answer(question):
-    """Получение ответа на вопрос с нормализацией строки"""
+
+    
     normalized_question = normalize_string(question)
     
     logging.info(f"Поиск ответа для: '{question}' -> нормализовано: '{normalized_question}'")
     
-    # Прямой поиск в нормализованных данных
     if normalized_question in normalized_faq_data:
         logging.info(f"Найден прямой ответ для: '{normalized_question}'")
         return normalized_faq_data[normalized_question]
     
-    # Если не нашли - дополнительный поиск
+  
     for faq_question, answer in normalized_faq_data.items():
         if normalized_question == faq_question:
             logging.info(f"Найден ответ при дополнительном поиске: '{faq_question}'")
             return answer
     
-    # Частичное совпадение как запасной вариант
+
     for faq_question, answer in normalized_faq_data.items():
         if normalized_question in faq_question or faq_question in normalized_question:
             logging.info(f"Найден ответ при частичном совпадении: '{faq_question}'")
@@ -287,7 +281,7 @@ def get_answer(question):
 # ОБРАБОТЧИКИ КОМАНД
 # ============================================================================
 
-# Обработчик команды /start
+
 @dp.message_created(CommandStart())
 async def send_welcome(event: MessageCreated):
     # Сбрасываем режим пользователя при старте
@@ -310,7 +304,7 @@ async def show_menu(event: MessageCreated):
     
     await event.message.answer("Главное меню:", attachments=[get_main_menu()])
 
-# Обработчик команды /cancel для выхода из режимов
+
 @dp.message_created(Command('cancel'))
 async def cancel_mode(event: MessageCreated):
     chat_id = event.message.recipient.chat_id
@@ -334,10 +328,10 @@ async def cancel_mode(event: MessageCreated):
             attachments=[get_main_menu()]
         )
 
-# Обработчик команды /remind
+
 @dp.message_created(Command('remind'))
 async def set_reminder_command(event: MessageCreated):
-    # Сбрасываем режим пользователя при использовании команды напоминания
+   
     chat_id = event.message.recipient.chat_id
     user_modes[chat_id] = None
     
@@ -363,7 +357,7 @@ async def set_reminder_command(event: MessageCreated):
             )
             return
 
-        # Правильное получение chat_id для Max API
+      
         chat_id = event.message.recipient.chat_id
         
         reminder_id = await reminder_manager.add_reminder(chat_id, text, event_date)
@@ -373,8 +367,8 @@ async def set_reminder_command(event: MessageCreated):
             f"Событие: {text}\n"
             f"Дата: {event_date.strftime('%d.%m.%Y')}\n\n"
             f"Вы получите напоминания:\n"
-            f"• Вечером накануне в 18:00\n"
-            f"• Утром в день события в 9:00",
+            f" Вечером накануне в 18:00\n"
+            f" Утром в день события в 9:00",
             attachments=[get_reminders_menu()]
         )
 
@@ -391,7 +385,7 @@ async def set_reminder_command(event: MessageCreated):
         logging.error(f"Ошибка установки напоминания: {e}")
 
 # ============================================================================
-# ОБНОВЛЕННЫЙ ОСНОВНОЙ ОБРАБОТЧИК КНОПОК
+#  ОБРАБОТЧИК КНОПОК
 # ============================================================================
 
 @dp.message_callback()
@@ -411,43 +405,43 @@ async def handle_button_click(callback: MessageCallback):
 
     print("Extracted payload:", payload)
     
-    # ПРАВИЛЬНОЕ получение chat_id для Max API в callback
+ 
     chat_id = callback.message.recipient.chat_id
     
-    # Обработка кнопки "Назад" в главное меню
+   
     if payload == "back_to_main":
-        user_modes[chat_id] = None  # Сбрасываем режим
+        user_modes[chat_id] = None  
         await callback.message.answer("Главное меню:", attachments=[get_main_menu()])
         return
     
-    # Обработка кнопки "Назад" к категориям FAQ
+    
     if payload == "back_to_faq_categories":
-        user_modes[chat_id] = None  # Сбрасываем режим
+        user_modes[chat_id] = None  
         await callback.message.answer("❓ Часто задаваемые вопросы:", attachments=[get_faq_categories_menu()])
         return
     
-    # Обработка кнопки "Назад" в меню напоминаний
+  
     if payload == "back_to_reminders":
-        user_modes[chat_id] = None  # Сбрасываем режим
+        user_modes[chat_id] = None 
         await callback.message.answer("📅 Управление напоминаниями:", attachments=[get_reminders_menu()])
         return
     
-    # Обработка главного меню напоминаний
+
     if payload == "reminders_menu":
-        user_modes[chat_id] = None  # Сбрасываем режим
+        user_modes[chat_id] = None  
         await callback.message.answer("📅 Управление напоминаниями:", attachments=[get_reminders_menu()])
         return
     
-    # Обработка кнопки FAQ категорий
+
     if payload == "faq_categories":
-        user_modes[chat_id] = None  # Сбрасываем режим
+        user_modes[chat_id] = None  
         await callback.message.answer(
             "❓ Выберите категорию часто задаваемых вопросов:",
             attachments=[get_faq_categories_menu()]
         )
         return
     
-    # Обработка свободного вопроса
+
     if payload == "free_question":
         user_modes[chat_id] = 'free_question'
         await callback.message.answer(
@@ -459,7 +453,7 @@ async def handle_button_click(callback: MessageCallback):
         )
         return
     
-    # Обработка навигации
+
     if payload == "navigation":
         user_modes[chat_id] = 'navigation'
         await callback.message.answer(
@@ -471,7 +465,7 @@ async def handle_button_click(callback: MessageCallback):
         )
         return
     
-    # Обработка помощи по боту (заглушка)
+
     if payload == "bot_help":
         user_modes[chat_id] = None
         await callback.message.answer(
@@ -489,7 +483,7 @@ async def handle_button_click(callback: MessageCallback):
         )
         return
     
-    # Обработка добавления напоминания
+    
     if payload == "add_reminder":
         user_modes[chat_id] = None
         await callback.message.answer(
@@ -500,8 +494,7 @@ async def handle_button_click(callback: MessageCallback):
             attachments=[get_reminders_menu()]
         )
         return
-    
-    # Обработка показа напоминаний на неделю
+
     if payload == "week_reminders":
         user_modes[chat_id] = None
         reminders = await reminder_manager.get_week_reminders(chat_id)
@@ -525,8 +518,7 @@ async def handle_button_click(callback: MessageCallback):
             attachments=[get_week_reminders_menu(reminders)]
         )
         return
-    
-    # Обработка изменения/удаления по дате
+  
     if payload == "edit_by_date":
         user_modes[chat_id] = None
         await callback.message.answer(
@@ -536,7 +528,7 @@ async def handle_button_click(callback: MessageCallback):
         )
         return
     
-    # Обработка редактирования текста напоминания
+
     if payload.startswith("edit_text_"):
         user_modes[chat_id] = None
         try:
@@ -574,7 +566,7 @@ async def handle_button_click(callback: MessageCallback):
             )
         return
     
-    # Обработка удаления напоминания
+
     if payload.startswith("delete_"):
         user_modes[chat_id] = None
         try:
@@ -597,7 +589,6 @@ async def handle_button_click(callback: MessageCallback):
             )
         return
     
-    # Обработка вопросов FAQ
     if payload.startswith("q_"):
         user_modes[chat_id] = None
         parts = payload.split("_")
@@ -607,9 +598,9 @@ async def handle_button_click(callback: MessageCallback):
             
             try:
                 question_index = int(parts[2])
-                # Получаем нормализованный вопрос для поиска ответа
+               
                 normalized_questions = get_questions_for_category(category)
-                # Получаем оригинальный вопрос для отображения
+                
                 original_questions = get_original_questions_for_category(category)
                 
                 if 0 <= question_index < len(normalized_questions):
@@ -626,7 +617,7 @@ async def handle_button_click(callback: MessageCallback):
                 logging.error(f"Ошибка обработки вопроса: {e}")
                 pass
     
-    # Обработка категорий FAQ (старые категории теперь в меню FAQ)
+   
     if payload in categories_data:
         user_modes[chat_id] = None
         category_title = get_category_title(payload)
@@ -645,10 +636,10 @@ async def handle_button_click(callback: MessageCallback):
 # ОБРАБОТЧИКИ СООБЩЕНИЙ ДЛЯ РЕДАКТИРОВАНИЯ
 # ============================================================================
 
-# Команда для редактирования текста напоминания
+
 @dp.message_created(Command('edit_text'))
 async def edit_text_reminder_command(event: MessageCreated):
-    # Сбрасываем режим пользователя при использовании команды редактирования
+   
     chat_id = event.message.recipient.chat_id
     user_modes[chat_id] = None
     
@@ -664,13 +655,13 @@ async def edit_text_reminder_command(event: MessageCreated):
         reminder_id = int(parts[1])
         new_text = parts[2]
 
-        # Правильное получение chat_id для Max API
+       
         chat_id = event.message.recipient.chat_id
         
         success = await reminder_manager.update_reminder_text(reminder_id, chat_id, new_text)
         
         if success:
-            # После успешного обновления показываем обновленный список напоминаний на неделю
+            
             reminders = await reminder_manager.get_week_reminders(chat_id)
             
             if not reminders:
@@ -692,7 +683,7 @@ async def edit_text_reminder_command(event: MessageCreated):
                 attachments=[get_week_reminders_menu(reminders)]
             )
         else:
-            # Если не удалось обновить, показываем список напоминаний с реальными ID
+         
             reminders = await reminder_manager.get_user_reminders(chat_id)
             if reminders:
                 message = f"❌ Не удалось обновить текст напоминания (ID: {reminder_id}).\n\n"
@@ -721,19 +712,19 @@ async def edit_text_reminder_command(event: MessageCreated):
         )
         logging.error(f"Ошибка редактирования текста напоминания: {e}")
 
-# Обработчик для ввода даты при редактировании по дате
+
 @dp.message_created()
 async def handle_date_input(event: MessageCreated):
-    # Проверяем, является ли сообщение датой в формате ДД.ММ.ГГГГ ???
+ 
     text = event.message.body.text.strip()
     print(text)
     print(type(text))
-    # Проверяем режим пользователя
+  
     chat_id = event.message.recipient.chat_id
     current_mode = user_modes.get(chat_id)
-    # 1) Режим "свободный вопрос" — сначала сообщение-плейсхолдер, потом вычисление ответа и отправка
+    
     if current_mode == 'free_question':
-        # Сообщаем пользователю, что запрос обрабатывается
+       
         await event.message.answer("⏳ Подождите, ваш вопрос обрабатывается...", attachments=None)
 
         try:
@@ -754,7 +745,7 @@ async def handle_date_input(event: MessageCreated):
         )
         return
 
-    # 2) Режим "навигация" — тоже сначала уведомление, потом поиск + отправка (вместе с картинками)
+   
     if current_mode == 'navigation':
         await event.message.answer("⏳ Подождите, ваш навигационный запрос обрабатывается...", attachments=None)
 
@@ -769,12 +760,12 @@ async def handle_date_input(event: MessageCreated):
             )
             return
 
-        # отправляет текст + возможные картинки (внутри функции уже есть fallback-сообщения)
+       
         await send_navigation_response(event, answer)
         logging.info("Где картинка?")
         return
     
-    # Если не в специальном режиме, обрабатываем как дату
+
     try:
         # Пытаемся распарсить дату
         target_date = datetime.strptime(text, '%d.%m.%Y').date()
@@ -787,10 +778,10 @@ async def handle_date_input(event: MessageCreated):
             )
             return
         
-        # Правильное получение chat_id для Max API
+     
         chat_id = event.message.recipient.chat_id
         
-        # Получаем напоминания на эту дату
+       
         reminders = await reminder_manager.get_reminders_by_date(chat_id, target_date)
         
         if not reminders:
@@ -801,7 +792,7 @@ async def handle_date_input(event: MessageCreated):
             return
         
         message = f"📅 Напоминания на {target_date.strftime('%d.%m.%Y')}:\n\n"
-        # Добавляем нумерацию для понятности и показываем реальные ID
+       
         for i, (reminder_id, reminder_text, date_str) in enumerate(reminders, 1):
             message += f"#{i} (ID: {reminder_id}): {reminder_text}\n"
         
@@ -815,17 +806,17 @@ async def handle_date_input(event: MessageCreated):
         )
         
     except ValueError:
-        # Если не дата и не специальный режим, игнорируем (это может быть обычное сообщение)
+
         pass
 
 async def main():
-    # Инициализируем базу данных напоминаний
+
     await reminder_manager.init_db()
     
-    # Запускаем фоновую задачу для напоминаний
+  
     asyncio.create_task(reminder_manager.send_scheduled_reminders())
     
-    # Запускаем бота
+
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
