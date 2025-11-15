@@ -1,5 +1,9 @@
-
-# RAG 
+# Чат-бот для поддержки первокурсников
+## Разработано в рамках хакатона «Цифровой вуз: создай удобный сервис для абитуриентов, студентов и преподавателей» от VK Education и Max
+## Разработчики:
+- Ефремова Ольга (github.com/oleffr)
+- Кузьмина Ксения (github.com/kasykuz)
+- Черникова Василиса (github.com/Ogneva2Vasilisa)
 
 Этот проект позволяет создавать и обновлять базу знаний для RAG (Retrieval-Augmented Generation) системы на основе веб-страниц и PDF-файлов, а также запускатьв консоли чат-бота для работы с этой базой.
 Для использования данного проекта требуется LM Studio для запуска хоста моделей.
@@ -11,6 +15,16 @@
 - **Запуск чат-бота**, который использует базу знаний для ответов на вопросы
 - **Справка по командам**, доступная через `main.py`
 
+### Запуск решения через Docker
+```bash
+docker-compose build
+docker-compose up -d
+```
+
+ССЫЛКА НА ОБРАЗ В DOCKERHUB: https://hub.docker.com/r/ogneva2vasilisa/rag-bot
+```bash
+docker pull ogneva2vasilisa/rag-bot:db-latest
+```
 
 ### Общий синтаксис
 
@@ -52,23 +66,7 @@ python main.py <command> [options]
    ```bash
    python main.py help
    ```
-
-## Настройки LM Studio
-
-- **LM_API** – адрес локального API LM Studio (`http://localhost:1234/v1`)
-- **LM_API_KEY** – ключ для LM Studio (`lm-studio`)
-- **EMBEDDING_MODEL** – модель эмбеддингов для LM Studio (`text-embedding-paraphrase-multilingual-minilm-l12-v2.gguf`)
-- **MODEL_NAME** – модель LLM для ответов (`Qwen2.5-3B-Instruct`)
-
-Все эти данные можно получить из ответа http://localhost:1234/v1/models
-
-## Примечания
-
-- Все базы сохраняются в папке, указанной через `--out` (по умолчанию `kb_output`).
-- FAISS база обновляется инкрементально: добавляются только новые URL или PDF, без дубликаты.
-- Рекурсивный краул веб-страниц игнорирует внешние домены и недоступные ссылки.
-- Прогресс обработки и добавления чанков отображается через прогресс-бар из `tqdm`.
-
+   
 ## Установка зависимостей
 
 ```bash
@@ -86,10 +84,4 @@ python main.py url --seeds ./seed_urls.txt --out ./kb_output --max_pages 200 --d
 
 # Запускаем чат-бот
 python main.py chat --out ./kb_output
-```
-
-Напоминание как создать venv:
-```
-python -m venv myenv
-.\venv\Scripts\Activate.ps1
 ```
