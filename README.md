@@ -19,6 +19,11 @@
 docker-compose build
 docker-compose up -d
 ```
+или просто
+
+```bash
+sudo docker-compose up —build
+```
 
 ССЫЛКА НА ОБРАЗ В DOCKERHUB: https://hub.docker.com/r/ogneva2vasilisa/rag-bot
 ```bash
