@@ -15,14 +15,9 @@
 - **Справка по командам**, доступная через `main.py`
 
 ### Запуск решения через Docker
-```bash
-docker-compose build
-docker-compose up -d
-```
-или просто
 
 ```bash
-sudo docker-compose up —build
+sudo docker-compose up
 ```
 
 ССЫЛКА НА ОБРАЗ В DOCKERHUB: https://hub.docker.com/r/ogneva2vasilisa/rag-bot
