@@ -64,7 +64,7 @@ python main.py <command> [options]
    python main.py help
    ```
    
-###Установка зависимостей
+### Установка зависимостей
 
 ```bash
 pip install -r requirements.txt
