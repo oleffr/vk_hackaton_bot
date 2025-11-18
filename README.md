@@ -15,17 +15,14 @@
 - **Справка по командам**, доступная через `main.py`
 
 ### Запуск решения через Docker
-
+**Запуск и сборка**
 ```bash
-sudo docker-compose up
+sudo docker-compose up --build
 ```
 
-ССЫЛКА НА ОБРАЗ В DOCKERHUB: https://hub.docker.com/r/ogneva2vasilisa/rag-bot
-```bash
-docker pull ogneva2vasilisa/rag-bot:db-latest
-```
+**ВНИМАНИЕ! При запуске через Docker никакие другие команды не требуются. Ниже будет описан локальный запуск без Docker**
 
-### Общий синтаксис
+### Общий синтаксис локального запуска
 
 ```bash
 python main.py <command> [options]
