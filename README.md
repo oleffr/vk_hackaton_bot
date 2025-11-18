@@ -55,7 +55,7 @@ python main.py <command> [options]
    ```bash
    python main.py chat --out ./kb_output
    ```
-   **Ньюансы:** 
+   **Нюансы:** 
    - Использует текущую FAISS базу.
    - Возвращает ответы с источниками (URL или PDF) по чанкам.
    - Поддерживает exit/выход/quit для завершения.
