@@ -138,7 +138,6 @@ def add_chunks_to_faiss(
     splitter = RecursiveCharacterTextSplitter(chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP)
     faiss_dir = get_faiss_path(output_dir)
 
-    # 1. Загрузка существующей базы и хешей
     with faiss_lock:
         existing_hashes = set()
         db = None
@@ -156,7 +155,6 @@ def add_chunks_to_faiss(
                 print(f"[WARN] Ошибка загрузки FAISS: {e}. Создаём новую базу.")
                 db = None
 
-    # 2. Подготовка чанков с фильтрацией дубликатов
     all_chunks = []
     all_metadatas = []
     
@@ -195,8 +193,8 @@ def add_chunks_to_faiss(
 
     # 3. Параллельное вычисление эмбеддингов
     print(f"[INFO] Вычисление эмбеддингов (batch_size={batch_size}, workers={workers})...")
-    
-    # Функция для обработки батча
+
+
     def process_batch(batch_texts):
         try:
             return embedder.embed_documents(batch_texts)
@@ -204,7 +202,6 @@ def add_chunks_to_faiss(
             print(f"[ERROR] Ошибка при вычислении эмбеддингов: {e}")
             return None
 
-    # Разбиваем на батчи
     text_batches = [all_chunks[i:i + batch_size] for i in range(0, total_chunks, batch_size)]
     all_embeddings = []
     failed_batches = []
@@ -227,7 +224,6 @@ def add_chunks_to_faiss(
                 print(f"[ERROR] Ошибка в потоке: {e}")
                 failed_batches.append(batch_idx)
 
-    # Повторная попытка для неудачных батчей
     if failed_batches:
         print(f"[INFO] Повторная обработка {len(failed_batches)} батчей...")
         for batch_idx in failed_batches:
@@ -247,7 +243,6 @@ def add_chunks_to_faiss(
     # 4. Добавление в FAISS
     with faiss_lock:
         if db is None:
-            # Создаём новую базу
             print("[INFO] Создание новой FAISS базы...")
             db = FAISS.from_embeddings(
                 text_embeddings=list(zip(all_chunks, all_embeddings)),
@@ -258,31 +253,25 @@ def add_chunks_to_faiss(
             # Добавляем в существующую базу
             print("[INFO] Добавление в существующую FAISS базу...")
             
-            # Создаём временный embedding объект с предвычисленными значениями
             text_to_embedding = dict(zip(all_chunks, all_embeddings))
             temp_embeddings = _PrecomputedEmbeddings(text_to_embedding)
             
-            # Сохраняем оригинальные функции
             original_embedding_function = getattr(db, 'embedding_function', None)
             original_embedding_function_private = getattr(db, '_embedding_function', None)
             
-            # Временно заменяем функции эмбеддинга
             if hasattr(db, 'embedding_function'):
                 db.embedding_function = temp_embeddings
             if hasattr(db, '_embedding_function'):
                 db._embedding_function = temp_embeddings
             
-            # Добавляем тексты
             try:
                 db.add_texts(all_chunks, metadatas=all_metadatas)
             finally:
-                # Восстанавливаем оригинальные функции
                 if original_embedding_function is not None:
                     db.embedding_function = original_embedding_function
                 if original_embedding_function_private is not None:
                     db._embedding_function = original_embedding_function_private
 
-        # Сохраняем базу
         os.makedirs(faiss_dir, exist_ok=True)
         db.save_local(faiss_dir)
         print(f"[OK] FAISS сохранён в {faiss_dir} ({total_chunks} новых чанков)")

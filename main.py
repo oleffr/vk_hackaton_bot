@@ -74,4 +74,8 @@ if __name__ == "__main__":
 
 """
     python main.py json --json_dir ./jsons --out ./kb_output
+    python main.py url --seeds ./seed_urls.txt --out ./kb_output --max_pages 200 --delay 0.1
+    python main.py chat --out ./kb_output
+    python main.py chat_nav
+    
 """

@@ -93,7 +93,7 @@ def crawl(seeds, max_pages=None, delay=0.2):
     page_counter = 0
     consecutive_warns = 0  # Счетчик последовательных предупреждений
     
-    # Словарь для отслеживания глубины URL (сколько раз мы поднимались)
+    # Словарь для отслеживания глубины URL (сколько раз поднимались)
     url_depths = {}
     for seed in seeds:
         url_depths[normalize_url(seed)] = 0
@@ -151,7 +151,7 @@ def crawl(seeds, max_pages=None, delay=0.2):
                 ordered_urls.append(url_norm)
                 consecutive_warns += 1
                 
-                # Проверяем, не достигли ли мы лимита предупреждений
+                # Проверяем, не достигли ли лимита предупреждений
                 if consecutive_warns >= MAX_CONSECUTIVE_WARNS:
                     print(f"[WARN] Достигнуто {MAX_CONSECUTIVE_WARNS} предупреждений подряд. Поднимаемся на уровень выше...")
                     
@@ -235,7 +235,6 @@ def crawl_and_update_faiss(embedder, seeds_file: str, output_dir: str, max_pages
     Главная функция для обработки seed URL, обхода HTML и PDF ссылок, обновления FAISS.
     """
 
-    # Загружаем seeds
     seeds = []
     if os.path.exists(seeds_file):
         with open(seeds_file, "r", encoding="utf-8") as f:
@@ -255,7 +254,7 @@ def crawl_and_update_faiss(embedder, seeds_file: str, output_dir: str, max_pages
             if text.strip():
                 pdf_items[str(f.resolve())] = {"text": text, "title": f.stem}
 
-    # Объединяем все данные
+
     all_items = {**pages, **pdf_items}
 
     # Обновление FAISS

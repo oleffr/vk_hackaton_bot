@@ -69,29 +69,21 @@ def qa_ai(qa_chain_a, text):
     key_phrase = "Информации недостаточно"
     
     if answer_a.startswith(key_phrase):
-        # Если ответ начинается с этой фразы — оставляем только её
         answer_a = key_phrase
     elif key_phrase in answer_a:
-        # Если встречается внутри — обрезаем по ней
         answer_a = answer_a.split(key_phrase, 1)[0].strip()
     
-    # Обрезаем по первому двойному переводу строки
     if "\n\n" in answer_a:
         answer_a = answer_a.split("\n\n", 1)[0].strip()
 
-    # Ищем паттерн '.<пробелы>.' и обрезаем по нему
     m = re.search(r"\.\s*\.", answer_a)
     if m:
         answer_a = answer_a[:m.start() + 1].strip()
     
-    # НОВАЯ ЛОГИКА: обрезаем если встречаются только точки, пробелы и переносы
-    # Ищем последовательность из 5 символов подряд, которые содержат только: . \s \n
     pattern = r"[\.\s\n]{5,}"  # 5 или более символов из набора: точка, пробел, перенос строки
     match = re.search(pattern, answer_a)
     if match:
-        # Обрезаем ответ до начала этой последовательности
         answer_a = answer_a[:match.start()].strip()
-        # Убираем возможную точку в конце
         if answer_a.endswith('.'):
             answer_a = answer_a[:-1].strip()
     
@@ -180,4 +172,43 @@ def init_bot2(prompt=PROMPT2):
         print(f"[ERROR] Ошибка инициализации навигационного бота: {e}")
         return None
 
-# ... остальные функции без изменений
+def start_rag_bot(embeddings, kb_path: str = DEFAULT_KB_PATH, top_k: int = DEFAULT_TOP_K, prompt=PROMPT1):
+    """Запуск RAG-бота с подключением к FAISS"""
+    
+    qa_chain = init_bot(embeddings, kb_path, top_k)
+    
+    while True:
+        query = input("❓ Вопрос: ").strip()
+        if query.lower() in ["exit", "выход", "quit"]:
+            print("Выход из чата.")
+            break
+
+        answer, sources = qa_ai(qa_chain, query)
+
+        print("\n🧠 Ответ модели:")
+        print(answer)
+        print(f"🔍 *📚 Источники (в разработке):* {sources}\n\n")
+
+
+def start_nav_bot():
+    """Запуск навигационного бота"""
+    nav_chain = init_bot2()
+    
+    while True:
+        query = input("🗺️ Навигационный вопрос: ").strip()
+        if query.lower() in ["exit", "выход", "quit"]:
+            print("Выход из навигационного режима.")
+            break
+
+        answer = qa_ai_nav(nav_chain, query)
+        print("--",answer)
+        print("\n🧭 Навигационный ответ:")
+        
+        if "\n" in answer:
+            answer = answer.split("\n", 1)[0].strip()
+        m = re.search(r"\.\s*\.", answer)
+        if m:
+            answer = answer[:m.start() + 1].strip()
+            
+        print(answer)
+        print()
