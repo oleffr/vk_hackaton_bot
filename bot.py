@@ -106,7 +106,7 @@ async def find_navigation_images(answer: str) -> list[str]:
     room = rm.group(1)
     
     # Базовый URL вашего GitHub репозитория
-    base_url = "https://raw.githubusercontent.com/Ogneva2Vasilisa/Min_RAG_with_crawler/main/img"
+    base_url = "https://raw.githubusercontent.com/oleffr/vk_hackaton_bot/main/img"
     
     # Правильно кодируем кириллицу в URL
     building_encoded = urllib.parse.quote(building)
